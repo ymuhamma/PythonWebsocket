@@ -1,27 +1,35 @@
 import websocket
 import rel
 import json
+import threading
+import logging
+from swapDatabase import swapDatabase
 
-AlphaAddress = ""
+logging.basicConfig(level=logging.DEBUG)
+AlphaBitcoinAddress = 'bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h'
+
+
+def onSwap(hash, fromAddress):
+    to_address, to_blockchain, to_amount = swapDatabase().getTransaction(hash, fromAddress, 0)
+    pass
 
 def on_open(socketApp):
     socketApp.send('{"op": "unconfirmed_sub"}')
-    print("Opened connection")
+    logging.info("Opened connection")
 
 def on_data(socketApp, message, dataType, finCode):
     message = json.loads(message)
-    if message['x']['inputs'][0]['prev_out']['addr'] == "bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h":
-        print('Hash =', message['x']['hash'])
-        print('To =', message['x']['out'][0]['addr'])
-        socketApp.close()
-
+    if message['x']['inputs'][0]['prev_out']['addr'] == AlphaBitcoinAddress:
+        logging.info(threading.activeCount())
+        threading.Thread(target=onSwap, args=(message['x']['hash'],message['x']['out'][0]['addr'],)).start()
+        
 def on_error(socketApp, e):
     socketApp.send('{"op": "unconfirmed_unsub"}')
     socketApp.close()
-    print("Connection is closed, issue:",e)
+    logging.error("Connection is closed, issue:",e)
 
 def on_pong(socketApp, message):
-    print("Pong: Connection is alive")
+    logging.info("Pong: Connection is alive")
 
 # websocket.enableTrace(True)
 socketApp = websocket.WebSocketApp("wss://ws.blockchain.info/inv", on_open=on_open, on_data=on_data, on_error=on_error, on_pong=on_pong)
